@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Счётчик пропусков — упрощённый</title>
+<style>
+  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;background:#0f1115;color:#e9eef5}
+  .wrap{max-width:680px;margin:0 auto;padding:20px}
+  .card{background:#151924;border:1px solid #232a36;border-radius:16px;padding:16px;margin-top:14px}
+  label{display:block;color:#aab6c5;font-size:13px;margin-bottom:4px}
+  input[type="number"]{width:100%;padding:12px 14px;background:#0e1320;color:#e9eef5;border:1px solid #273042;border-radius:12px;font-size:16px;appearance:textfield}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .btn{flex:1 1 auto;min-width:46%; padding:14px 16px;border-radius:14px;border:1px solid #2b364b;background:#1b2333;color:#e9eef5;font-size:16px;font-weight:600}
+  .btn:active{transform:scale(0.99)}
+  .btn.primary{background:#2563eb;border-color:#2563eb;color:white}
+  .kpi{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:10px}
+  .item{background:#0e1320;border:1px solid #273042;border-radius:12px;padding:12px}
+  .label{font-size:12px;color:#9aa7b5}
+  .value{font-size:20px;font-weight:700;margin-top:6px}
+  .progress{height:12px;background:#0e1320;border:1px solid #273042;border-radius:999px;overflow:hidden;margin-top:10px}
+  .bar{height:100%;width:0%;background:#22c55e}
+  .danger{background:#ef4444!important}
+  .small{font-size:12px;color:#9aa7b5}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Счётчик пропусков (простая версия)</h1>
+  <div class="card">
+    <div class="row">
+      <div style="flex:1 1 48%"><label>Всего часов</label><input id="totalHours" type="number" value="400" step="1" min="1"></div>
+      <div style="flex:1 1 48%"><label>Часов в дне</label><input id="dailyHours" type="number" value="3.25" step="0.25" min="0.5"></div>
+      <div style="flex:1 1 48%"><label>Лимит, %</label><input id="limitPct" type="number" value="30" step="1" min="1" max="100"></div>
+      <div style="flex:1 1 48%"><label>Лимит в днях (опц.)</label><input id="limitDaysManual" type="number" placeholder="например, 37"></div>
+    </div>
+    <div class="row" style="margin-top:10px"><button class="btn" onclick="recalc()">Пересчитать</button></div>
+    <div class="small" id="info">—</div>
+  </div>
+
+  <div class="card">
+    <label class="small">Отмечай пропуски</label>
+    <div class="row"><button class="btn" onclick="dec()">— день</button><button class="btn primary" onclick="inc()">+ день</button></div>
+    <div class="kpi">
+      <div class="item"><div class="label">Пропущено дней</div><div class="value" id="missedDays">0</div></div>
+      <div class="item"><div class="label">Осталось можно</div><div class="value" id="remainingDays">—</div></div>
+    </div>
+    <div class="progress"><div class="bar" id="bar"></div></div>
+    <div class="row" style="margin-top:10px"><button class="btn" onclick="setVal()">Задать число…</button><button class="btn" onclick="resetVal()">Сбросить</button></div>
+    <div class="small">Данные не сохраняются (упрощённая версия без памяти).</div>
+  </div>
+</div>
+
+<script>
+let missed = 0; // хочешь старт с 2 дней? поставь 2
+function getVals(){
+  const totalHours = Number(document.getElementById('totalHours').value);
+  const dailyHours = Number(document.getElementById('dailyHours').value);
+  const limitPct = Number(document.getElementById('limitPct').value);
+  const manual = document.getElementById('limitDaysManual').value;
+  const daysInCourse = totalHours / dailyHours;
+  const maxSkip = manual ? Number(manual) : (totalHours*(limitPct/100))/dailyHours;
+  return {daysInCourse, maxSkip};
+}
+function ui(){
+  const {daysInCourse, maxSkip} = getVals();
+  document.getElementById('info').textContent =
+    `Всего дней в курсе: ${isFinite(daysInCourse)?Math.round(daysInCourse):'—'} • Можно пропустить: ${isFinite(maxSkip)?Math.round(maxSkip):'—'}`;
+  const remaining = Math.max(0, Math.floor(maxSkip - missed));
+  document.getElementById('missedDays').textContent = missed;
+  document.getElementById('remainingDays').textContent = isFinite(remaining)?remaining:'—';
+  const bar = document.getElementById('bar');
+  const pct = isFinite(maxSkip) && maxSkip>0 ? Math.min(100, (missed/maxSkip)*100) : 0;
+  bar.style.width = pct + '%';
+  bar.classList.toggle('danger', pct >= 100);
+}
+function recalc(){ ui(); }
+function inc(){ missed+=1; ui(); }
+function dec(){ missed=Math.max(0, missed-1); ui(); }
+function setVal(){ const v = prompt('Сколько дней уже пропущено?', String(missed)); if(v!==null && !isNaN(Number(v))) { missed = Math.max(0, Math.round(Number(v))); ui(); } }
+function resetVal(){ if(confirm('Сбросить счётчик?')){ missed=0; ui(); } }
+ui();
+</script>
+</body>
+</html>
