@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Счётчик пропусков — курс 400 ч</title>
+<style>
+  :root{--gap:14px;--radius:14px;--font:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;font-family:var(--font);background:#0f1115;color:#e9eef5}
+  .wrap{max-width:720px;margin:0 auto;padding:24px}
+  h1{font-size:22px;margin:0 0 8px}
+  .muted{color:#9aa7b5;font-size:14px}
+  .card{background:#151924;border:1px solid #232a36;border-radius:18px;padding:16px;margin-top:var(--gap)}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:var(--gap)}
+  label{display:block;font-size:13px;color:#aab6c5;margin-bottom:6px}
+  input[type="number"]{width:100%;padding:12px 14px;background:#0e1320;color:#e9eef5;border:1px solid #273042;border-radius:12px;font-size:16px;appearance:textfield}
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .btn{flex:1 1 auto;min-width:46%; padding:14px 16px;border-radius:14px;border:1px solid #2b364b;background:#1b2333;color:#e9eef5;font-size:16px;font-weight:600}
+  .btn:active{transform:scale(0.99)}
+  .btn.primary{background:#2563eb;border-color:#2563eb;color:white}
+  .btn.warn{background:#3a2431;border-color:#8b1d3a}
+  .kpi{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:10px}
+  .kpi .item{background:#0e1320;border:1px solid #273042;border-radius:12px;padding:12px}
+  .kpi .label{font-size:12px;color:#9aa7b5}
+  .kpi .value{font-size:20px;font-weight:700;margin-top:6px}
+  .progress{height:12px;background:#0e1320;border:1px solid #273042;border-radius:999px;overflow:hidden;margin-top:10px}
+  .bar{height:100%;width:0%;background:#22c55e}
+  .danger{background:#ef4444 !important}
+  .footer{margin-top:22px;font-size:12px;color:#8ea0b2}
+  .small{font-size:12px;color:#9aa7b5}
+  .spacer{height:8px}
+  .inline{display:flex;gap:8px;align-items:center}
+  .chip{padding:6px 10px;border-radius:999px;background:#0e1320;border:1px solid #273042;color:#a6b3c4;font-size:12px}
+  .flex{display:flex;gap:10px}
+  .grow{flex:1 1 auto}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Счётчик пропусков</h1>
+    <div class="muted">Для твоего курса немецкого. Работает офлайн, сохраняет данные на устройстве.</div>
+
+    <div class="card">
+      <div class="grid">
+        <div>
+          <label>Общий объём курса, часов</label>
+          <input id="totalHours" type="number" step="1" min="1" value="400">
+        </div>
+        <div>
+          <label>Часов в учебном дне</label>
+          <input id="dailyHours" type="number" step="0.25" min="0.5" value="3.25">
+        </div>
+        <div>
+          <label>Допустимый лимит отсутствий, %</label>
+          <input id="limitPct" type="number" step="1" min="1" max="100" value="30">
+        </div>
+        <div>
+          <label>Или задай лимит в днях (необязательно)</label>
+          <input id="limitDaysManual" type="number" step="1" min="0" placeholder="например, 37">
+        </div>
+      </div>
+
+      <div class="spacer"></div>
+      <div class="row">
+        <button class="btn" id="recalcBtn">Пересчитать</button>
+        <button class="btn" id="saveBtn">Сохранить настройки</button>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <span class="chip" id="computedDaysChip">Всего дней в курсе: —</span>
+        <span class="chip" id="maxSkipChip">Можно пропустить: —</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <label class="small">Отмечай пропуски здесь</label>
+      <div class="row">
+        <button class="btn warn" id="minusBtn">— день</button>
+        <div class="grow"></div>
+        <button class="btn primary" id="plusBtn">+ день</button>
+      </div>
+      <div class="kpi">
+        <div class="item">
+          <div class="label">Пропущено дней</div>
+          <div class="value" id="missedDays">0</div>
+        </div>
+        <div class="item">
+          <div class="label">Осталось можно пропустить</div>
+          <div class="value" id="remainingDays">—</div>
+        </div>
+      </div>
+      <div class="progress">
+        <div class="bar" id="bar"></div>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <button class="btn" id="resetMissed">Сбросить пропуски</button>
+        <button class="btn" id="setMissed">Задать число пропусков…</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <label>Быстрые подсказки</label>
+      <ul class="small">
+        <li>По умолчанию расчёт: 400 ч / 3,25 ч в день = ≈ 123 дня в курсе.</li>
+        <li>Лимит 30% = 120 ч = ≈ 37 дней, можно ввести вручную.</li>
+        <li>Нажимай «+ день» после каждого пропуска, счётчик сохранится.</li>
+        <li>Можно изменить параметры — всё сразу пересчитается.</li>
+      </ul>
+    </div>
+
+    <div class="footer">
+      Советы: в Safari нажми <strong>Поделиться → На экран «Домой»</strong>, чтобы использовать как приложение. Данные хранятся локально (localStorage).
+    </div>
+  </div>
+
+<script>
+(function(){
+  const $ = sel => document.querySelector(sel);
+  const state = {
+    totalHours: 400,
+    dailyHours: 3.25,
+    limitPct: 30,
+    limitDaysManual: null,
+    missedDays: 0
+  };
+
+  const el = {
+    totalHours: $('#totalHours'),
+    dailyHours: $('#dailyHours'),
+    limitPct: $('#limitPct'),
+    limitDaysManual: $('#limitDaysManual'),
+    missedDays: $('#missedDays'),
+    remainingDays: $('#remainingDays'),
+    computedDaysChip: $('#computedDaysChip'),
+    maxSkipChip: $('#maxSkipChip'),
+    bar: $('#bar'),
+    recalcBtn: $('#recalcBtn'),
+    saveBtn: $('#saveBtn'),
+    minusBtn: $('#minusBtn'),
+    plusBtn: $('#plusBtn'),
+    resetMissed: $('#resetMissed'),
+    setMissed: $('#setMissed')
+  };
+
+  function load(){
+    try{
+      const raw = localStorage.getItem('absenceTrackerV1');
+      if(raw){
+        const saved = JSON.parse(raw);
+        Object.assign(state, saved);
+      }
+    }catch(e){}
+    // hydrate UI
+    el.totalHours.value = state.totalHours;
+    el.dailyHours.value = state.dailyHours;
+    el.limitPct.value = state.limitPct;
+    el.limitDaysManual.value = state.limitDaysManual ?? '';
+    update(true);
+  }
+
+  function save(){
+    localStorage.setItem('absenceTrackerV1', JSON.stringify(state));
+  }
+
+  function calc(){
+    const daysInCourse = state.totalHours / state.dailyHours;
+    const maxSkipDays = (state.limitDaysManual != null && state.limitDaysManual !== '')
+      ? Number(state.limitDaysManual)
+      : ( (state.totalHours * (state.limitPct/100)) / state.dailyHours );
+    return {daysInCourse, maxSkipDays};
+  }
+
+  function clamp(v, min, max){ return Math.max(min, Math.min(max, v)); }
+
+  function update(skipSave){
+    state.totalHours = Number(el.totalHours.value);
+    state.dailyHours = Number(el.dailyHours.value);
+    state.limitPct = Number(el.limitPct.value);
+    state.limitDaysManual = el.limitDaysManual.value === '' ? null : Number(el.limitDaysManual.value);
+    const {daysInCourse, maxSkipDays} = calc();
+
+    const missed = clamp(Number(state.missedDays)||0, 0, 9999);
+    const remaining = Math.max(0, maxSkipDays - missed);
+
+    el.missedDays.textContent = missed.toFixed(0);
+    el.remainingDays.textContent = isFinite(remaining) ? Math.floor(remaining).toString() : '—';
+
+    el.computedDaysChip.textContent = 'Всего дней в курсе: ' + (isFinite(daysInCourse) ? Math.round(daysInCourse) : '—');
+    el.maxSkipChip.textContent = 'Можно пропустить: ' + (isFinite(maxSkipDays) ? Math.round(maxSkipDays) : '—');
+
+    // progress bar
+    let pct = 0;
+    if(isFinite(maxSkipDays) && maxSkipDays > 0){
+      pct = clamp((missed / maxSkipDays) * 100, 0, 100);
+    }
+    el.bar.style.width = pct + '%';
+    el.bar.classList.toggle('danger', pct >= 100);
+
+    if(!skipSave) save();
+  }
+
+  // Event handlers
+  el.recalcBtn.addEventListener('click', ()=> update());
+  el.saveBtn.addEventListener('click', ()=> { save(); animate(el.saveBtn); });
+  el.plusBtn.addEventListener('click', ()=> { state.missedDays = (Number(state.missedDays)||0) + 1; update(); });
+  el.minusBtn.addEventListener('click', ()=> { state.missedDays = Math.max(0, (Number(state.missedDays)||0) - 1); update(); });
+  el.resetMissed.addEventListener('click', ()=> {
+    if(confirm('Сбросить счётчик пропусков к нулю?')){
+      state.missedDays = 0; update();
+    }
+  });
+  el.setMissed.addEventListener('click', ()=> {
+    const val = prompt('Сколько дней уже пропущено?', String(state.missedDays||0));
+    if(val!==null && !isNaN(Number(val))){
+      state.missedDays = Math.max(0, Math.round(Number(val))); update();
+    }
+  });
+
+  // subtle button feedback
+  function animate(button){
+    button.style.transform = 'scale(0.98)';
+    setTimeout(()=> button.style.transform = '', 120);
+  }
+
+  // Persist on input changes
+  ['totalHours','dailyHours','limitPct','limitDaysManual'].forEach(id => {
+    el[id].addEventListener('change', ()=> update());
+    el[id].addEventListener('input', ()=> update(true));
+  });
+
+  load();
+})();
+</script>
+</body>
+</html>
